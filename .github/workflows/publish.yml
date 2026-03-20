@@ -1,0 +1,40 @@
+name: Publish NuGet
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    name: Pack & Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test tests/Hermes.Tests/Hermes.Tests.csproj --no-build -c Release --logger "console;verbosity=minimal"
+
+      - name: Pack HermesMediator
+        run: dotnet pack src/Hermes/Hermes.csproj --no-build -c Release -o ./nupkgs
+
+      - name: Pack HermesMediator.Testing
+        run: dotnet pack src/Hermes.Testing/Hermes.Testing.csproj --no-build -c Release -o ./nupkgs
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
