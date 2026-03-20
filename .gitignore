@@ -1,0 +1,19 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.nupkg
+*.snupkg
+TestResults/
+BenchmarkDotNet.Artifacts/
+
+## Rider / JetBrains
+.idea/
+
+## VS Code
+.vscode/
+
+## Claude
+.claude/
