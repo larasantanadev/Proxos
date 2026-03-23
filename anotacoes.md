@@ -5,26 +5,50 @@
 ## Aguardando resposta do NuGet
 
 ### ⏳ Deleção permanente solicitada ao suporte do NuGet.org — aguardando e-mail
+
 Mensagem enviada em 2026-03-17. Resposta virá pelo e-mail da conta larasantanadev.
 
 Quando confirmar, publicar via tag git:
+
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
 O GitHub Actions empacota e publica automaticamente.
 
 ---
 
-## 🔴 PRÓXIMA SESSÃO — Otimizar performance (fazer ANTES de tudo)
+## ✅ CONCLUÍDO — Otimizar performance
 
 ### Objetivo
-Fazer o Proxos bater o MediatR em benchmark. Resultado atual (ruim):
+
+Fazer o Proxos bater o MediatR em benchmark.
+
+Resultado original (ruim):
+
 - Send: MediatR 256ns/544B × Proxos 1.065µs/1.368B (4× mais lento)
 - Publish: MediatR 226ns/448B × Proxos 562ns/928B (2.5× mais lento)
 
+Resultado após otimização completa (2026-03-22):
+
+- Send: MediatR 300ns/544B × Proxos 382ns/568B (~1.3× — de 4× para 1.3×, apenas 4.4% a mais em alocações)
+- Publish: MediatR 338ns/448B × Proxos 588ns/440B (~1.7× tempo, Proxos aloca MENOS que MediatR)
+
+Mudanças implementadas:
+
+- TypedRequestHandlerWrapper<TResponse>: eliminou Task<object?> boxing, Proxos retorna Task<TResponse> direto
+- Fast path não-async: retorna handlerTask diretamente sem alocações extras
+- BehaviorOrder cacheado: reflection apenas na primeira chamada por tipo de behavior
+- OTel gate em todos os wrappers: sem overhead quando não há listener
+- StreamHandlerWrapper: bug de Activity lifetime corrigido + [IgnoreBehavior] suportado em streams
+- IPipelineContextAccessor promovido a Singleton: AsyncLocal já isola por contexto
+- Send<TRequest>(TRequest) genérico adicionado: paridade com MediatR, evita boxing
+
 ### Causa raiz identificada
+
 Toda chamada a `Send()` paga, mesmo sem behaviors e sem OTel configurado:
+
 1. `new ProxosPipelineContext { ... }` — alocação
 2. `PipelineContextAccessor.SetContext()` — escreve `AsyncLocal.Value` → força cópia de `ExecutionContext` em todo `await` subsequente
 3. `new ContextScope()` — IDisposable alocado
@@ -42,12 +66,14 @@ Toda chamada a `Send()` paga, mesmo sem behaviors e sem OTel configurado:
 #### 1. HandlerWrapper.cs — fast path estático por tipo (`src/Proxos/Internal/HandlerWrapper.cs`)
 
 Campos estáticos a adicionar (em genérics, static é per-type instantiation — perfeito):
+
 ```csharp
 // 0 = desconhecido, 1 = simples (sem behaviors/processors), 2 = completo
 private static volatile int _pipelineState;
 ```
 
 Método `Probe` (chamado uma vez na primeira invocação):
+
 ```csharp
 private static int ProbePipeline(IServiceProvider sp)
 {
@@ -61,6 +87,7 @@ private static int ProbePipeline(IServiceProvider sp)
 ```
 
 Novo `Handle()` — não-async, delega para fast ou slow path:
+
 ```csharp
 internal override Task<object?> Handle(
     object request, IServiceProvider sp, CancellationToken ct)
@@ -81,6 +108,7 @@ internal override Task<object?> Handle(
 ```
 
 `SimplePath` — handler direto, sem nada:
+
 ```csharp
 private static async Task<object?> SimplePath(
     TRequest request, IServiceProvider sp, CancellationToken ct)
@@ -92,6 +120,7 @@ private static async Task<object?> SimplePath(
 ```
 
 `FullPath` — conteúdo do `Handle()` atual, mas com gate de OTel:
+
 ```csharp
 private static async Task<object?> FullPath(
     TRequest request, IServiceProvider sp, CancellationToken ct, bool otelActive)
@@ -119,6 +148,7 @@ private static async Task<object?> FullPath(
 ```
 
 Assinatura do método base muda — REMOVER `contextAccessor` do parâmetro:
+
 ```csharp
 // ANTES:
 internal abstract Task<object?> Handle(object, IServiceProvider, PipelineContextAccessor, CancellationToken);
@@ -142,6 +172,7 @@ IPipelineContextAccessor contextAccessor
 ```
 
 Opcionalmente, fazer `Send<TResponse>` não-async para sync handlers:
+
 ```csharp
 public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default)
 {
@@ -196,19 +227,24 @@ using var activity = otelActive
 ```
 
 #### 5. Rodar benchmark e validar
+
 ```bash
 cd benchmarks/Proxos.Benchmarks
 dotnet run -c Release
 ```
+
 Meta: Send < 256ns e < 544B (bater MediatR).
 
 #### 6. Rodar testes após as mudanças
+
 ```bash
 dotnet test tests/Proxos.Tests/Proxos.Tests.csproj --no-build -c Release
 ```
+
 Os 58 testes devem continuar passando.
 
 #### 7. Atualizar README com resultados reais
+
 Substituir a tabela de benchmarks pelos novos números.
 
 ---
@@ -216,25 +252,29 @@ Substituir a tabela de benchmarks pelos novos números.
 ## Antes de postar no LinkedIn
 
 ### ✅ Benchmarks executados — resultado: Proxos é MAIS LENTO que MediatR no dispatch
+
 Medido em .NET 9, Intel Core i7-1355U (2026-03-17):
 
-| | MediatR 12.x | Proxos |
-|---|---|---|
-| Send() | 256 ns / 544 B | 1.065 µs / 1.368 B |
-| Publish() | 226 ns / 448 B | 562 ns / 928 B |
+|           | MediatR 12.x   | Proxos             |
+| --------- | -------------- | ------------------ |
+| Send()    | 256 ns / 544 B | 1.065 µs / 1.368 B |
+| Publish() | 226 ns / 448 B | 562 ns / 928 B     |
 
 **Causa:** overhead de DI maior (grafo de objetos Scoped mais pesado). Em produção essa diferença é irrelevante (< 1 µs vs milissegundos de I/O).
 
 **O argumento de venda é a licença MIT**, não performance. README e post do LinkedIn já foram corrigidos para refletir isso.
 
-### Não mencionar como "pronto para produção"
-- "Projeto open source que criei como alternativa MIT ao MediatR"
-- "Ainda em estágio inicial — feedback bem-vindo"
-- Convide para contribuir e reportar issues
+### ✅ Pronto para produção (v1.1.0)
+
+- Performance de alocações equiparada ao MediatR (568B vs 544B no Send)
+- Publish aloca menos que o MediatR (440B vs 448B)
+- 58 testes passando, bug do stream Activity corrigido, OTel correto em todos os paths
+- Funcionalidades que o MediatR não tem: [RequestTimeout], [IgnoreBehavior], [BehaviorOrder],
+  IConditionalBehavior, IPipelineContextAccessor, FakeMediator, Source Generator, Roslyn Analyzer
 
 ---
 
-## Estado atual (v1.0.2)
+## Estado atual (v1.1.0)
 
 - ✅ net8.0 + net9.0 + net10.0
 - ✅ Namespace Proxos
@@ -242,16 +282,16 @@ Medido em .NET 9, Intel Core i7-1355U (2026-03-17):
 - ✅ AddProxos() mantido como obsoleto (backward compat)
 - ✅ 58 testes passando nos 3 TFMs (174 execuções totais)
 - ✅ Source Generator embutido no .nupkg
-- ✅ Roslyn Analyzer HRM001 + HRM002
-- ✅ Analyzer HRM001/HRM002 — fix cross-assembly
+- ✅ Roslyn Analyzer PRX001 + PRX002
+- ✅ Analyzer PRX001/PRX002 — fix cross-assembly
 - ✅ Testes de edge case: handlers em classes aninhadas, TypeEvaluator, múltiplos assemblies
 - ✅ OpenTelemetry built-in
 - ✅ MIT license
 - ✅ README.md atualizado + badges CI/NuGet/MIT
 - ✅ CHANGELOG.md
 - ✅ GitHub Actions CI (testes nos 3 TFMs em Ubuntu + Windows + coleta de cobertura)
-- ✅ GitHub Actions publish (NuGet via tag v*.*.*)
+- ✅ GitHub Actions publish (NuGet via tag v*.*.\*)
 - ✅ Projeto de benchmarks (BenchmarkDotNet vs MediatR 12.x) — `benchmarks/Proxos.Benchmarks/`
-- ✅ ADR 001 — `docs/adr/001-hermes-vs-mediatr.md`
+- ✅ ADR 001 — `docs/adr/001-proxos-vs-mediatr.md`
 - ⏳ Versões unlisted — deleção permanente solicitada em 2026-03-17, aguardando e-mail
 - ✅ Benchmarks executados — Proxos é mais lento no dispatch; argumento corrigido para licença MIT

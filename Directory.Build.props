@@ -6,11 +6,11 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
 
     <!-- NuGet metadata compartilhado -->
-    <Authors>Hermes Contributors</Authors>
-    <Copyright>Copyright © 2025 Hermes Contributors</Copyright>
+    <Authors>Proxos Contributors</Authors>
+    <Copyright>Copyright © 2025 Proxos Contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/larasantanadev/Hermes</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/larasantanadev/Hermes</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/larasantanadev/Proxos</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/larasantanadev/Proxos</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

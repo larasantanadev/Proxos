@@ -16,7 +16,7 @@ Segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ### Adicionado
 - Multi-targeting: suporte a `net8.0`, `net9.0` e `net10.0`
 - `AddProxos()` — nome consistente com o pacote NuGet `Proxos`
-- Fix do Analyzer HRM001/HRM002 para handlers em assemblies referenciados (cross-assembly)
+- Fix do Analyzer PRX001/PRX002 para handlers em assemblies referenciados (cross-assembly)
 - GitHub Actions: CI automático (testes nos 3 TFMs em Ubuntu e Windows)
 - GitHub Actions: publicação automática no NuGet.org via tag `v*.*.*`
 - CHANGELOG.md
@@ -36,8 +36,8 @@ Segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 - Source Generator `HandlerRegistrationGenerator` — gera `AddProxosGenerated()` em compile-time
-- Roslyn Analyzer HRM001 — detecta `IRequest<T>` sem handler em compile-time
-- Roslyn Analyzer HRM002 — detecta `IStreamRequest<T>` sem handler em compile-time
+- Roslyn Analyzer PRX001 — detecta `IRequest<T>` sem handler em compile-time
+- Roslyn Analyzer PRX002 — detecta `IStreamRequest<T>` sem handler em compile-time
 - `#nullable enable` no código gerado (fix CS8669)
 
 ### Alterado

@@ -1,18 +1,18 @@
-# HermesMediator
+# Proxos
 
-[![CI](https://github.com/larasantanadev/Hermes/actions/workflows/ci.yml/badge.svg)](https://github.com/larasantanadev/Hermes/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/HermesMediator)](https://www.nuget.org/packages/HermesMediator)
+[![CI](https://github.com/larasantanadev/Proxos/actions/workflows/ci.yml/badge.svg)](https://github.com/larasantanadev/Proxos/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Proxos)](https://www.nuget.org/packages/Proxos)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 MIT-licensed mediator for .NET 8, 9 and 10 — compile-time safety via Source Generator and Roslyn Analyzer, built-in OpenTelemetry, API compatible with MediatR.
 
-## Por que HermesMediator?
+## Por que Proxos?
 
-| Aspecto | MediatR | HermesMediator |
+| Aspecto | MediatR | Proxos |
 |---|---|---|
 | Dispatch | Reflection em toda chamada | Source Generator gera tabela em compile-time — zero reflection no startup scanning |
 | Startup | Assembly scanning em runtime (lento) | Registro estático gerado — startup instantâneo |
-| Handler não encontrado | Exceção em runtime, mensagem genérica | Analyzer **HRM001** alerta em compile-time |
+| Handler não encontrado | Exceção em runtime, mensagem genérica | Analyzer **PRX001** alerta em compile-time |
 | Ordem de behaviors | Depende da ordem de registro — frágil | Determinística e explícita |
 | Behaviors condicionais | Apenas via generic constraint | `IConditionalBehavior` para condições em runtime |
 | Timeout por request | Manual | `[RequestTimeout(ms)]` declarativo |
@@ -26,14 +26,14 @@ MIT-licensed mediator for .NET 8, 9 and 10 — compile-time safety via Source Ge
 ## Instalação
 
 ```bash
-dotnet add package HermesMediator
-dotnet add package HermesMediator.Testing  # apenas em projetos de teste
+dotnet add package Proxos
+dotnet add package Proxos.Testing  # apenas em projetos de teste
 ```
 
 ## Configuração
 
 ```csharp
-builder.Services.AddHermesMediator(cfg => cfg
+builder.Services.AddProxos(cfg => cfg
     .RegisterServicesFromAssembly(typeof(Program).Assembly)
     .AddOpenBehavior(typeof(LoggingBehavior<,>)));
 ```
@@ -246,40 +246,40 @@ cfg.RegisterServicesFromAssembly(typeof(Program).Assembly)
 
 ## Source Generator (registro zero-reflection)
 
-O HermesMediator inclui um Source Generator que escaneia o assembly em **compile-time** e gera
-um método `AddHermesGenerated()` com registro estático de todos os handlers.
+O Proxos inclui um Source Generator que escaneia o assembly em **compile-time** e gera
+um método `AddProxosGenerated()` com registro estático de todos os handlers.
 
 Isso elimina completamente o assembly scanning em runtime — startup instantâneo.
 
-O generator é automaticamente incluído ao instalar o pacote `HermesMediator`.
+O generator é automaticamente incluído ao instalar o pacote `Proxos`.
 
-## Analyzer HRM001
+## Analyzer PRX001
 
 Quando um `IRequest` não tem handler correspondente, o analyzer emite um aviso **em compile-time**:
 
 ```
-warning HRM001: 'CreateUserCommand' implementa 'IRequest<Unit>' mas não existe
+warning PRX001: 'CreateUserCommand' implementa 'IRequest<Unit>' mas não existe
 'IRequestHandler<CreateUserCommand, Unit>' neste projeto.
 ```
 
 ## OpenTelemetry
 
-HermesMediator emite traces e métricas automaticamente. Configure o seu provider:
+Proxos emite traces e métricas automaticamente. Configure o seu provider:
 
 ```csharp
 services.AddOpenTelemetry()
-    .WithTracing(b => b.AddSource(HermesDiagnostics.ActivitySourceName))
-    .WithMetrics(b => b.AddMeter(HermesDiagnostics.MeterName));
+    .WithTracing(b => b.AddSource(ProxosDiagnostics.ActivitySourceName))
+    .WithMetrics(b => b.AddMeter(ProxosDiagnostics.MeterName));
 ```
 
 Métricas expostas:
-- `hermes.requests.total` — total de requests enviados
-- `hermes.requests.failed` — requests com falha
-- `hermes.request.duration` — duração em ms (histograma)
-- `hermes.notifications.total` — notificações publicadas
-- `hermes.timeouts.total` — requests cancelados por timeout
+- `proxos.requests.total` — total de requests enviados
+- `proxos.requests.failed` — requests com falha
+- `proxos.request.duration` — duração em ms (histograma)
+- `proxos.notifications.total` — notificações publicadas
+- `proxos.timeouts.total` — requests cancelados por timeout
 
-## HermesMediator.Testing
+## Proxos.Testing
 
 ```csharp
 var fake = new FakeMediator()
@@ -300,23 +300,28 @@ O benchmark inclui criação de scope DI + resolução do mediator + dispatch �
 
 ### Send()
 
-| Método | Média | Alocações |
+| Método | Tempo | Alocações |
 |---|---|---|
-| MediatR 12.x | 256 ns | 544 B |
-| HermesMediator | 1.065 µs | 1.368 B |
+| MediatR 12.x | 300 ns | 544 B |
+| **Proxos** | **382 ns** | **568 B** |
 
 ### Publish()
 
-| Método | Média | Alocações |
+| Método | Tempo | Alocações |
 |---|---|---|
-| MediatR 12.x | 226 ns | 448 B |
-| HermesMediator | 562 ns | 928 B |
+| MediatR 12.x | 338 ns | 448 B |
+| **Proxos** | **588 ns** | **440 B** ✅ |
 
-> **Nota:** O HermesMediator tem overhead maior de DI do que o MediatR. Em aplicações reais, ambos operam em sub-microssegundo — negligível comparado a qualquer I/O (DB, HTTP, disco). **A vantagem do HermesMediator é a licença MIT**, não a performance de dispatch.
+> Medido com BenchmarkDotNet em .NET 9, Intel Core i7-1355U.
+> Inclui criação de scope DI + resolução do mediator + dispatch — cenário realístico de ASP.NET Core.
+>
+> **Alocações**: Proxos aloca apenas 4.4% a mais no Send e **menos** que o MediatR no Publish.
+> O overhead de tempo (~1.3–1.7×) é irrelevante em produção — qualquer I/O (banco, HTTP) é 100–1000× mais lento que o dispatch.
+> A principal vantagem é **licença MIT**, segurança em compile-time e funcionalidades que o MediatR não oferece.
 
 Para rodar localmente:
 ```bash
-cd benchmarks/Hermes.Benchmarks
+cd benchmarks/Proxos.Benchmarks
 dotnet run -c Release
 ```
 

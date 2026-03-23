@@ -1,35 +1,35 @@
-# Hermes — Plano Completo de Implementação
+# Proxos — Plano Completo de Implementação
 
 Substituto do MediatR com namespace próprio, target net10.0, sem reflection em hot path,
 diagnósticos integrados e segurança em tempo de compilação.
 
 ---
 
-## Por que Hermes supera o MediatR
+## Por que Proxos supera o MediatR
 
-| Aspecto | MediatR | Hermes |
-|---|---|---|
-| Dispatch | Reflection + `Activator.CreateInstance` em toda chamada | Source Generator gera tabela de dispatch em compile-time — zero reflection no hot path |
-| Registro de handlers | Assembly scanning em runtime (lento no startup) | Source Generator gera método de registro estático — startup instantâneo |
-| Handler não encontrado | Exceção em runtime, mensagem genérica | Analyzer `HRM001` alerta em **compile-time** com sugestão de código |
-| Ordem de behaviors | Depende da ordem de registro no DI — frágil | Parâmetro `order:` explícito e determinístico |
-| Behaviors condicionais | Só por generic constraint (compile-time) | `IConditionalBehavior` para condições em runtime |
-| Timeout por request | Não existe — implementar manualmente | Atributo `[RequestTimeout(ms)]` direto na classe |
-| Ignorar behavior por request | Não existe | Atributo `[IgnoreBehavior(typeof(TBehavior))]` na classe do request |
-| Diagnósticos | Nenhum built-in | `ActivitySource` + `Meter` integrados (OpenTelemetry nativo) |
-| Contexto entre behaviors | Não existe | `IPipelineContextAccessor` injetável em qualquer handler/behavior |
-| Testes | Requer Moq/NSubstitute verboso | `Hermes.Testing` com `FakeMediator` fluente |
-| Framework | net6+ | net10.0 — usa todos os recursos modernos |
+| Aspecto                      | MediatR                                                 | Proxos                                                                                 |
+| ---------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Dispatch                     | Reflection + `Activator.CreateInstance` em toda chamada | Source Generator gera tabela de dispatch em compile-time — zero reflection no hot path |
+| Registro de handlers         | Assembly scanning em runtime (lento no startup)         | Source Generator gera método de registro estático — startup instantâneo                |
+| Handler não encontrado       | Exceção em runtime, mensagem genérica                   | Analyzer `PRX001` alerta em **compile-time** com sugestão de código                    |
+| Ordem de behaviors           | Depende da ordem de registro no DI — frágil             | Parâmetro `order:` explícito e determinístico                                          |
+| Behaviors condicionais       | Só por generic constraint (compile-time)                | `IConditionalBehavior` para condições em runtime                                       |
+| Timeout por request          | Não existe — implementar manualmente                    | Atributo `[RequestTimeout(ms)]` direto na classe                                       |
+| Ignorar behavior por request | Não existe                                              | Atributo `[IgnoreBehavior(typeof(TBehavior))]` na classe do request                    |
+| Diagnósticos                 | Nenhum built-in                                         | `ActivitySource` + `Meter` integrados (OpenTelemetry nativo)                           |
+| Contexto entre behaviors     | Não existe                                              | `IPipelineContextAccessor` injetável em qualquer handler/behavior                      |
+| Testes                       | Requer Moq/NSubstitute verboso                          | `Proxos.Testing` com `FakeMediator` fluente                                            |
+| Framework                    | net6+                                                   | net10.0 — usa todos os recursos modernos                                               |
 
 ---
 
 ## 1. Estrutura do Repositório
 
 ```
-Hermes/
+Proxos/
 ├── src/
-│   ├── Hermes/
-│   │   ├── Hermes.csproj
+│   ├── Proxos/
+│   │   ├── Proxos.csproj
 │   │   ├── Interfaces/
 │   │   │   ├── IRequest.cs
 │   │   │   ├── INotification.cs
@@ -49,7 +49,7 @@ Hermes/
 │   │   │   ├── RequestTimeoutAttribute.cs
 │   │   │   └── IgnoreBehaviorAttribute.cs
 │   │   ├── Context/
-│   │   │   ├── HermesPipelineContext.cs
+│   │   │   ├── ProxosPipelineContext.cs
 │   │   │   ├── IPipelineContextAccessor.cs
 │   │   │   └── PipelineContextAccessor.cs
 │   │   ├── Internal/
@@ -58,7 +58,7 @@ Hermes/
 │   │   │   ├── WarmupService.cs
 │   │   │   └── RequestHandlerDelegate.cs
 │   │   ├── Diagnostics/
-│   │   │   └── HermesDiagnostics.cs
+│   │   │   └── ProxosDiagnostics.cs
 │   │   ├── Configuration/
 │   │   │   ├── MediatorConfiguration.cs
 │   │   │   └── PublishStrategy.cs
@@ -67,8 +67,8 @@ Hermes/
 │   │   └── Extensions/
 │   │       └── ServiceCollectionExtensions.cs
 │   │
-│   ├── Hermes.Generator/
-│   │   ├── Hermes.Generator.csproj       ← netstandard2.0, Roslyn
+│   ├── Proxos.Generator/
+│   │   ├── Proxos.Generator.csproj       ← netstandard2.0, Roslyn
 │   │   ├── Registration/
 │   │   │   └── HandlerRegistrationGenerator.cs
 │   │   ├── Dispatch/
@@ -77,14 +77,14 @@ Hermes/
 │   │       ├── MissingHandlerAnalyzer.cs
 │   │       └── DiagnosticDescriptors.cs
 │   │
-│   └── Hermes.Testing/
-│       ├── Hermes.Testing.csproj
+│   └── Proxos.Testing/
+│       ├── Proxos.Testing.csproj
 │       ├── FakeMediator.cs
 │       └── FakeMediatorExtensions.cs
 │
 ├── tests/
-│   └── Hermes.Tests/
-│       ├── Hermes.Tests.csproj
+│   └── Proxos.Tests/
+│       ├── Proxos.Tests.csproj
 │       ├── SendTests.cs
 │       ├── PublishTests.cs
 │       ├── PipelineBehaviorTests.cs
@@ -95,7 +95,7 @@ Hermes/
 │       ├── TimeoutTests.cs
 │       ├── DiagnosticsTests.cs
 │       └── FakeMediatorTests.cs
-├── Hermes.sln
+├── Proxos.sln
 └── PLAN.md
 ```
 
@@ -103,7 +103,7 @@ Hermes/
 
 ## 2. Configuração dos Projetos (.csproj)
 
-### src/Hermes/Hermes.csproj
+### src/Proxos/Proxos.csproj
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -114,10 +114,10 @@ Hermes/
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
 
-    <PackageId>Hermes</PackageId>
+    <PackageId>Proxos</PackageId>
     <Version>1.0.0</Version>
     <Description>High-performance mediator for .NET 10 — zero-reflection hot path, built-in OpenTelemetry, compile-time safety</Description>
-    <PackageTags>mediator;cqrs;pipeline;hermes;dispatcher</PackageTags>
+    <PackageTags>mediator;cqrs;pipeline;proxos;dispatcher</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -128,16 +128,16 @@ Hermes/
     <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.0" />
   </ItemGroup>
 
-  <!-- Empacota o source generator dentro do pacote NuGet do Hermes -->
+  <!-- Empacota o source generator dentro do pacote NuGet do Proxos -->
   <ItemGroup>
-    <ProjectReference Include="..\Hermes.Generator\Hermes.Generator.csproj"
+    <ProjectReference Include="..\Proxos.Generator\Proxos.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
 ```
 
-### src/Hermes.Generator/Hermes.Generator.csproj
+### src/Proxos.Generator/Proxos.Generator.csproj
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -157,7 +157,7 @@ Hermes/
 </Project>
 ```
 
-### src/Hermes.Testing/Hermes.Testing.csproj
+### src/Proxos.Testing/Proxos.Testing.csproj
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -166,18 +166,18 @@ Hermes/
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <PackageId>Hermes.Testing</PackageId>
+    <PackageId>Proxos.Testing</PackageId>
     <Version>1.0.0</Version>
-    <Description>Testing utilities for Hermes — FakeMediator with fluent assertion API</Description>
+    <Description>Testing utilities for Proxos — FakeMediator with fluent assertion API</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Hermes\Hermes.csproj" />
+    <ProjectReference Include="..\Proxos\Proxos.csproj" />
   </ItemGroup>
 </Project>
 ```
 
-### tests/Hermes.Tests/Hermes.Tests.csproj
+### tests/Proxos.Tests/Proxos.Tests.csproj
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -192,8 +192,8 @@ Hermes/
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <ProjectReference Include="..\..\src\Hermes\Hermes.csproj" />
-    <ProjectReference Include="..\..\src\Hermes.Testing\Hermes.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Proxos\Proxos.csproj" />
+    <ProjectReference Include="..\..\src\Proxos.Testing\Proxos.Testing.csproj" />
   </ItemGroup>
 </Project>
 ```
@@ -205,7 +205,7 @@ Hermes/
 ### 3.1 Marcadores de Request/Notification
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 // Request sem retorno — retorna Unit internamente
 public interface IRequest : IRequest<Unit> { }
@@ -223,7 +223,7 @@ public interface INotification { }
 ### 3.2 Handlers
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 // Handler principal com retorno
 public interface IRequestHandler<in TRequest, TResponse>
@@ -255,7 +255,7 @@ public interface IStreamRequestHandler<in TRequest, out TResponse>
 ### 3.3 Pipeline
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 // Delegate que representa o próximo passo na cadeia
 public delegate Task<TResponse> RequestHandlerDelegate<TResponse>();
@@ -335,7 +335,7 @@ public sealed class RequestExceptionHandlerState<TResponse>
 ### 3.4 IMediator, ISender, IPublisher
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 public interface ISender
 {
@@ -371,7 +371,7 @@ public interface IMediator : ISender, IPublisher { }
 ## 4. Unit
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 /// Representa ausência de valor em contextos genéricos (substitui void).
 [Serializable]
@@ -404,7 +404,7 @@ Aplicado na classe do request. O mediator detecta e cria um `CancellationTokenSo
 vinculado com o timeout especificado. Não requer nenhum behavior adicional.
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 /// Define um timeout automático para o request.
 /// O CancellationToken passado ao handler será cancelado após o tempo especificado.
@@ -430,7 +430,7 @@ O mediator verifica o atributo durante a montagem do pipeline.
 > A solução correta usa `Type` como parâmetro do atributo.
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 /// Instrui o mediator a não executar o behavior do tipo especificado para este request.
 /// Aceita tipos abertos: typeof(LoggingBehavior<,>) ou fechados: typeof(LoggingBehavior<Req, Res>).
@@ -459,9 +459,9 @@ sem poluir a assinatura do handler nem o objeto de request.
 Funciona via `AsyncLocal<T>` — seguro em cenários concorrentes com múltiplas threads.
 
 ```csharp
-namespace Hermes.Context;
+namespace Proxos.Context;
 
-public sealed class HermesPipelineContext
+public sealed class ProxosPipelineContext
 {
     public string RequestId { get; init; } = Guid.NewGuid().ToString("N");
     public Type RequestType { get; init; } = typeof(object);
@@ -475,17 +475,17 @@ public sealed class HermesPipelineContext
 
 public interface IPipelineContextAccessor
 {
-    // Contexto do request em andamento; null fora de um pipeline Hermes
-    HermesPipelineContext? Context { get; }
+    // Contexto do request em andamento; null fora de um pipeline Proxos
+    ProxosPipelineContext? Context { get; }
 }
 
 // Implementação interna — usa AsyncLocal para isolamento por cadeia async
 internal sealed class PipelineContextAccessor : IPipelineContextAccessor
 {
-    private static readonly AsyncLocal<HermesPipelineContext?> _current = new();
-    public HermesPipelineContext? Context => _current.Value;
+    private static readonly AsyncLocal<ProxosPipelineContext?> _current = new();
+    public ProxosPipelineContext? Context => _current.Value;
 
-    internal static void Set(HermesPipelineContext ctx)  => _current.Value = ctx;
+    internal static void Set(ProxosPipelineContext ctx)  => _current.Value = ctx;
     internal static void Clear()                          => _current.Value = null;
 }
 
@@ -508,16 +508,16 @@ internal sealed class PipelineContextAccessor : IPipelineContextAccessor
 Built-in, zero configuração adicional. Funciona com qualquer collector OpenTelemetry.
 
 ```csharp
-namespace Hermes.Diagnostics;
+namespace Proxos.Diagnostics;
 
-internal static class HermesDiagnostics
+internal static class ProxosDiagnostics
 {
-    internal const string ActivitySourceName = "Hermes";
-    internal const string MeterName          = "Hermes";
+    internal const string ActivitySourceName = "Proxos";
+    internal const string MeterName          = "Proxos";
 
     // Versão lida do assembly em runtime — sem dependência de Nerdbank.GitVersioning ou MinVer
     private static readonly string _version =
-        typeof(HermesDiagnostics).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+        typeof(ProxosDiagnostics).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
 
     internal static readonly ActivitySource ActivitySource =
         new(ActivitySourceName, _version);
@@ -528,30 +528,30 @@ internal static class HermesDiagnostics
     // Contadores e histogramas
     internal static readonly Counter<long> RequestsHandled =
         Meter.CreateCounter<long>(
-            "hermes.requests.total",
-            description: "Total de requests processados pelo Hermes");
+            "proxos.requests.total",
+            description: "Total de requests processados pelo Proxos");
 
     internal static readonly Counter<long> RequestsFailed =
         Meter.CreateCounter<long>(
-            "hermes.requests.failed",
+            "proxos.requests.failed",
             description: "Total de requests que resultaram em exceção");
 
     internal static readonly Histogram<double> RequestDuration =
         Meter.CreateHistogram<double>(
-            "hermes.request.duration",
+            "proxos.request.duration",
             unit: "ms",
             description: "Duração de execução dos requests");
 
     internal static readonly Counter<long> NotificationsPublished =
         Meter.CreateCounter<long>(
-            "hermes.notifications.total",
+            "proxos.notifications.total",
             description: "Total de notificações publicadas");
 }
 
 // O que é gerado automaticamente em cada Send():
-// Activity "Hermes.Send" com tags:
-//   hermes.request.type  = "CreateUserCommand"
-//   hermes.success       = true/false
+// Activity "Proxos.Send" com tags:
+//   proxos.request.type  = "CreateUserCommand"
+//   proxos.success       = true/false
 // Histogram: duração em ms
 // Counter: +1 a cada Send(), +1 ao RequestsFailed em caso de exceção
 ```
@@ -563,7 +563,7 @@ internal static class HermesDiagnostics
 ### 8.1 PublishStrategy
 
 ```csharp
-namespace Hermes.Configuration;
+namespace Proxos.Configuration;
 
 public enum PublishStrategy
 {
@@ -583,7 +583,7 @@ public enum PublishStrategy
 ### 8.2 MediatorConfiguration
 
 ```csharp
-namespace Hermes.Configuration;
+namespace Proxos.Configuration;
 
 public sealed class MediatorConfiguration
 {
@@ -739,7 +739,7 @@ internal sealed class MediatorCache
 ```
 
 > **Nota:** O Source Generator (seção 13) elimina a necessidade de `Activator.CreateInstance`
-> para projetos que usam `AddHermesGenerated()`. O cache com `FrozenDictionary` é o fallback
+> para projetos que usam `AddProxosGenerated()`. O cache com `FrozenDictionary` é o fallback
 > para cenários de registro manual ou dinâmico.
 
 ### 9.2 HandlerWrapper — Implementação
@@ -894,7 +894,7 @@ internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHa
                         catch (Exception ex)
                         {
                             logger?.LogError(ex,
-                                "Hermes FireAndForget: handler {Handler} falhou para {Notification}",
+                                "Proxos FireAndForget: handler {Handler} falhou para {Notification}",
                                 handler.GetType().Name,
                                 typeof(TNotification).Name);
                         }
@@ -911,7 +911,7 @@ internal sealed class NotificationHandlerWrapper<TNotification> : NotificationHa
 ## 10. Mediator — Implementação Central
 
 ```csharp
-namespace Hermes;
+namespace Proxos;
 
 // DECISÃO DE ESCOPO: o Mediator NÃO cria IServiceScope por request.
 // Handlers são resolvidos do mesmo IServiceProvider que o Mediator recebe.
@@ -949,7 +949,7 @@ public sealed class Mediator : IMediator
         var requestType = request.GetType();
 
         // Contexto do pipeline
-        var ctx = new HermesPipelineContext { RequestType = requestType };
+        var ctx = new ProxosPipelineContext { RequestType = requestType };
         PipelineContextAccessor.Set(ctx);
 
         // Timeout automático via [RequestTimeout]
@@ -957,9 +957,9 @@ public sealed class Mediator : IMediator
         var ct = cts?.Token ?? cancellationToken;
 
         using var activity = _diagnosticsEnabled
-            ? HermesDiagnostics.ActivitySource.StartActivity($"Hermes.Send.{requestType.Name}")
+            ? ProxosDiagnostics.ActivitySource.StartActivity($"Proxos.Send.{requestType.Name}")
             : null;
-        activity?.SetTag("hermes.request.type", requestType.FullName);
+        activity?.SetTag("proxos.request.type", requestType.FullName);
 
         // Stopwatch.GetTimestamp() é zero-cost quando diagnósticos estão desabilitados
         var startTimestamp = _diagnosticsEnabled ? Stopwatch.GetTimestamp() : 0L;
@@ -970,13 +970,13 @@ public sealed class Mediator : IMediator
             var wrapper      = _cache.GetOrCreateRequestWrapper(requestType, responseType);
             var result       = await wrapper.Handle(request, _sp, ct);
 
-            activity?.SetTag("hermes.success", true);
+            activity?.SetTag("proxos.success", true);
             if (_diagnosticsEnabled)
             {
-                HermesDiagnostics.RequestsHandled.Add(1,
+                ProxosDiagnostics.RequestsHandled.Add(1,
                     new("request.type", requestType.Name),
                     new("success", true));
-                HermesDiagnostics.RequestDuration.Record(
+                ProxosDiagnostics.RequestDuration.Record(
                     Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
                     new("request.type", requestType.Name));
             }
@@ -985,10 +985,10 @@ public sealed class Mediator : IMediator
         }
         catch
         {
-            activity?.SetTag("hermes.success", false);
+            activity?.SetTag("proxos.success", false);
             if (_diagnosticsEnabled)
             {
-                HermesDiagnostics.RequestsFailed.Add(1,
+                ProxosDiagnostics.RequestsFailed.Add(1,
                     new("request.type", requestType.Name));
             }
             throw;
@@ -1065,7 +1065,7 @@ public sealed class Mediator : IMediator
     private Task PublishCore(INotification notification, CancellationToken ct)
     {
         if (_diagnosticsEnabled)
-            HermesDiagnostics.NotificationsPublished.Add(1,
+            ProxosDiagnostics.NotificationsPublished.Add(1,
                 new("notification.type", notification.GetType().Name));
 
         var wrapper = _cache.GetOrCreateNotificationWrapper(notification.GetType());
@@ -1100,7 +1100,7 @@ public sealed class Mediator : IMediator
             }}
 
         E registre:
-            services.AddHermes(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+            services.AddProxos(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
         """;
 }
 ```
@@ -1110,11 +1110,11 @@ public sealed class Mediator : IMediator
 ## 11. ServiceCollectionExtensions
 
 ```csharp
-namespace Hermes.Extensions;
+namespace Proxos.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddHermes(
+    public static IServiceCollection AddProxos(
         this IServiceCollection services,
         Action<MediatorConfiguration> configure)
     {
@@ -1212,7 +1212,7 @@ internal sealed record HandlerTypeDescriptor(Type RequestType, Type ResponseType
 
 ---
 
-## 12. Source Generator — Hermes.Generator
+## 12. Source Generator — Proxos.Generator
 
 O gerador escaneia os symbols Roslyn em compile-time e produz dois arquivos:
 
@@ -1220,22 +1220,22 @@ O gerador escaneia os symbols Roslyn em compile-time e produz dois arquivos:
 
 **Entrada:** qualquer classe na compilação que implemente `IRequestHandler<,>`, etc.
 
-**Saída:** `HermesGeneratedRegistrations.g.cs`
+**Saída:** `ProxosGeneratedRegistrations.g.cs`
 
 ```csharp
 // <auto-generated/>
-// Gerado por Hermes.Generator — não editar manualmente
+// Gerado por Proxos.Generator — não editar manualmente
 
 using Microsoft.Extensions.DependencyInjection;
-using Hermes;
+using Proxos;
 
 namespace MyApp;  // namespace do projeto consumidor
 
-public static class HermesGeneratedRegistrations
+public static class ProxosGeneratedRegistrations
 {
     /// Registra todos os handlers encontrados em compile-time.
     /// Mais rápido que RegisterServicesFromAssembly porque não usa reflection no startup.
-    public static IServiceCollection AddHermesGenerated(
+    public static IServiceCollection AddProxosGenerated(
         this IServiceCollection services,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
@@ -1255,31 +1255,31 @@ public static class HermesGeneratedRegistrations
 }
 ```
 
-**Como usar — `AddHermesGenerated()` é chamado separado de `AddHermes()`:**
+**Como usar — `AddProxosGenerated()` é chamado separado de `AddProxos()`:**
 
 ```csharp
 // SEM source generator (assembly scanning em runtime):
-services.AddHermes(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+services.AddProxos(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
 // COM source generator (zero reflection no startup):
-services.AddHermes(cfg =>
+services.AddProxos(cfg =>
 {
     // apenas behaviors e configuração — sem RegisterServicesFromAssembly
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>), order: 1);
     cfg.PublishStrategy = PublishStrategy.Sequential;
 });
-services.AddHermesGenerated(); // método gerado pelo source generator, chamado aqui
+services.AddProxosGenerated(); // método gerado pelo source generator, chamado aqui
 ```
 
 ### 12.2 DispatchTableGenerator
 
-**Saída:** `HermesDispatchTable.g.cs`
+**Saída:** `ProxosDispatchTable.g.cs`
 
 ```csharp
 // <auto-generated/>
 // Tabela de dispatch sem reflection — zero Activator.CreateInstance no hot path
 
-internal static class HermesDispatchTable
+internal static class ProxosDispatchTable
 {
     internal static readonly FrozenDictionary<Type, RequestHandlerBase> Handlers =
         new Dictionary<Type, RequestHandlerBase>
@@ -1295,7 +1295,7 @@ O `MediatorCache` usa esta tabela quando disponível, eliminando o `Activator.Cr
 ### 12.3 Como implementar o generator (estrutura Roslyn)
 
 ```csharp
-// Hermes.Generator/Registration/HandlerRegistrationGenerator.cs
+// Proxos.Generator/Registration/HandlerRegistrationGenerator.cs
 [Generator]
 public sealed class HandlerRegistrationGenerator : IIncrementalGenerator
 {
@@ -1324,26 +1324,26 @@ public sealed class HandlerRegistrationGenerator : IIncrementalGenerator
 
 ---
 
-## 13. Roslyn Analyzer — HRM001
+## 13. Roslyn Analyzer — PRX001
 
 Detecta em **compile-time** quando um `IRequest<T>` existe mas nenhum handler está registrado
 na mesma compilação.
 
 ```csharp
-// Hermes.Generator/Analyzers/DiagnosticDescriptors.cs
+// Proxos.Generator/Analyzers/DiagnosticDescriptors.cs
 internal static class DiagnosticDescriptors
 {
     public static readonly DiagnosticDescriptor MissingHandler = new(
-        id:                 "HRM001",
+        id:                 "PRX001",
         title:              "Request sem handler",
         messageFormat:      "'{0}' implementa IRequest<{1}> mas nenhum IRequestHandler<{0}, {1}> foi encontrado",
-        category:           "Hermes",
+        category:           "Proxos",
         defaultSeverity:    DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description:        "Toda IRequest deve ter um IRequestHandler correspondente registrado.");
 }
 
-// Hermes.Generator/Analyzers/MissingHandlerAnalyzer.cs
+// Proxos.Generator/Analyzers/MissingHandlerAnalyzer.cs
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MissingHandlerAnalyzer : DiagnosticAnalyzer
 {
@@ -1389,19 +1389,20 @@ public sealed class MissingHandlerAnalyzer : DiagnosticAnalyzer
 ```
 
 **Resultado no IDE:**
+
 ```
-⚠ HRM001  'CreateUserCommand' implementa IRequest<UserDto>
+⚠ PRX001  'CreateUserCommand' implementa IRequest<UserDto>
           mas nenhum IRequestHandler<CreateUserCommand, UserDto> foi encontrado
 ```
 
 ---
 
-## 14. Hermes.Testing — FakeMediator
+## 14. Proxos.Testing — FakeMediator
 
 Testes unitários sem Moq. API fluente para configurar respostas e assertivas.
 
 ```csharp
-namespace Hermes.Testing;
+namespace Proxos.Testing;
 
 public sealed class FakeMediator : IMediator
 {
@@ -1506,20 +1507,20 @@ public sealed class FakeMediator : IMediator
 
 ## 15. Comportamentos para Casos de Borda
 
-| Situação | Comportamento |
-|---|---|
-| `Send()` sem handler registrado | `InvalidOperationException` com mensagem detalhada (seção 10) |
-| `Publish()` sem handlers | Silencioso — notificação ignorada |
-| `Send(null)` | `ArgumentNullException` |
-| `Publish(object)` que não é `INotification` | `ArgumentException` |
-| Handler lança exceção | Propaga; `IRequestExceptionHandler` pode interceptar |
-| `[RequestTimeout]` estoura | `OperationCanceledException` (ou `TaskCanceledException`) |
-| `Parallel` publish com N falhas | `AggregateException` com todas as exceções |
-| `FireAndForget` com exceção | Exceção logada via `ILogger` (se disponível), nunca propagada |
-| `IConditionalBehavior.ShouldHandle` → false | Behavior pulado; próximo da cadeia é chamado |
-| Request tem `[IgnoreBehavior(typeof(TBehavior))]` | `TBehavior` removido do pipeline para este request |
-| Tipo registrado duas vezes | DI resolve o último (comportamento padrão MS DI); WarmupService usa o primeiro encontrado |
-| WarmupService não registrado | Cache funciona lazy (ConcurrentDictionary) — sem penalidade, apenas sem FrozenDictionary |
+| Situação                                          | Comportamento                                                                             |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Send()` sem handler registrado                   | `InvalidOperationException` com mensagem detalhada (seção 10)                             |
+| `Publish()` sem handlers                          | Silencioso — notificação ignorada                                                         |
+| `Send(null)`                                      | `ArgumentNullException`                                                                   |
+| `Publish(object)` que não é `INotification`       | `ArgumentException`                                                                       |
+| Handler lança exceção                             | Propaga; `IRequestExceptionHandler` pode interceptar                                      |
+| `[RequestTimeout]` estoura                        | `OperationCanceledException` (ou `TaskCanceledException`)                                 |
+| `Parallel` publish com N falhas                   | `AggregateException` com todas as exceções                                                |
+| `FireAndForget` com exceção                       | Exceção logada via `ILogger` (se disponível), nunca propagada                             |
+| `IConditionalBehavior.ShouldHandle` → false       | Behavior pulado; próximo da cadeia é chamado                                              |
+| Request tem `[IgnoreBehavior(typeof(TBehavior))]` | `TBehavior` removido do pipeline para este request                                        |
+| Tipo registrado duas vezes                        | DI resolve o último (comportamento padrão MS DI); WarmupService usa o primeiro encontrado |
+| WarmupService não registrado                      | Cache funciona lazy (ConcurrentDictionary) — sem penalidade, apenas sem FrozenDictionary  |
 
 ---
 
@@ -1529,7 +1530,7 @@ public sealed class FakeMediator : IMediator
 Request entra em Send()
     │
     ├─ [RequestTimeout] → CancellationTokenSource criado e vinculado
-    ├─ HermesPipelineContext criado e publicado via AsyncLocal
+    ├─ ProxosPipelineContext criado e publicado via AsyncLocal
     ├─ Activity OpenTelemetry iniciada
     │
     ▼
@@ -1557,6 +1558,7 @@ Response retorna pela cadeia de behaviors (na ordem inversa)
 ```
 
 **Regra de ordem dos behaviors:**
+
 1. Behaviors com `order:` explícito no `AddBehavior`/`AddOpenBehavior` são ordenados pelo valor (menor = mais externo)
 2. Behaviors sem `order:` recebem `int.MaxValue` e mantêm a ordem de registro
 3. Para empates, a ordem de registro no DI é o desempate
@@ -1567,26 +1569,28 @@ Response retorna pela cadeia de behaviors (na ordem inversa)
 
 ## 17. Compatibilidade com MediatR
 
-**Decisão: Opção B — namespace próprio `Hermes`.**
+**Decisão: Opção B — namespace próprio `Proxos`.**
 
 Migração do projeto consumidor: substituir em massa:
+
 ```
-using MediatR;               →  using Hermes;
-using MediatR.Pipeline;      →  using Hermes;
+using MediatR;               →  using Proxos;
+using MediatR.Pipeline;      →  using Proxos;
 IRequest<T>                  →  sem mudança (mesmo nome)
 IRequestHandler<T, R>        →  sem mudança (mesmo nome)
 INotification                →  sem mudança (mesmo nome)
-services.AddMediatR(...)     →  services.AddHermes(...)
+services.AddMediatR(...)     →  services.AddProxos(...)
 ```
 
 Script PowerShell de migração para incluir no repositório:
+
 ```powershell
-# migrate-to-hermes.ps1
+# migrate-to-proxos.ps1
 Get-ChildItem -Recurse -Filter "*.cs" | ForEach-Object {
     (Get-Content $_.FullName) `
-        -replace 'using MediatR;',        'using Hermes;' `
-        -replace 'using MediatR\.Pipeline;', 'using Hermes;' `
-        -replace 'services\.AddMediatR\(', 'services.AddHermes(' |
+        -replace 'using MediatR;',        'using Proxos;' `
+        -replace 'using MediatR\.Pipeline;', 'using Proxos;' `
+        -replace 'services\.AddMediatR\(', 'services.AddProxos(' |
     Set-Content $_.FullName
 }
 ```
@@ -1596,32 +1600,35 @@ Get-ChildItem -Recurse -Filter "*.cs" | ForEach-Object {
 ## 18. Checklist — Tudo Resolvido
 
 ### Decisões tomadas
+
 - [x] **Target framework:** `net10.0` exclusivamente
-- [x] **Namespace:** `Hermes` (Opção B — namespace próprio)
-- [x] **Nome do pacote NuGet:** `Hermes` e `Hermes.Testing`
+- [x] **Namespace:** `Proxos` (Opção B — namespace próprio)
+- [x] **Nome do pacote NuGet:** `Proxos` e `Proxos.Testing`
 - [x] **`IRequestExceptionHandler`:** incluído na v1
 - [x] **`IStreamRequest`:** incluído na v1
-- [x] **`Hermes.Testing`:** incluído na v1
+- [x] **`Proxos.Testing`:** incluído na v1
 - [x] **Ordem de behaviors:** via parâmetro `order:` + `RegistrationIndex` como desempate
 - [x] **Diagnósticos:** built-in, habilitados por padrão, desabilitáveis via `EnableDiagnostics = false`
 - [x] **Source Generator:** planejado para v1 (registration + dispatch table)
-- [x] **Analyzer HRM001:** planejado para v1 (warning de handler ausente)
+- [x] **Analyzer PRX001:** planejado para v1 (warning de handler ausente)
 - [x] **Cache:** `ConcurrentDictionary` lazy + `FrozenDictionary` pós-warm-up
 
 ### Correções aplicadas (bugs do plano anterior)
+
 - [x] **`[IgnoreBehavior]`** corrigido: usa `Type` como parâmetro — `[IgnoreBehavior(typeof(LoggingBehavior<,>))]`
 - [x] **`BehaviorRegistration`** agora inclui `RegistrationIndex` para desempate correto na ordenação
 - [x] **`ThenBy((r, i) => i)`** substituído por `.ThenBy(r => r.RegistrationIndex)` (sintaxe válida)
 - [x] **`ValueStopwatch`** substituído por `Stopwatch.GetTimestamp()` / `Stopwatch.GetElapsedTime()`
-- [x] **`ThisAssembly.Version`** substituído por `typeof(HermesDiagnostics).Assembly.GetName().Version`
+- [x] **`ThisAssembly.Version`** substituído por `typeof(ProxosDiagnostics).Assembly.GetName().Version`
 - [x] **`services.Add<TService, TImpl>()`** substituído por `new ServiceDescriptor(...)` (extensão inexistente)
-- [x] **`UseGeneratedRegistrations()`** removido — `AddHermesGenerated()` é chamado separado de `AddHermes()`
+- [x] **`UseGeneratedRegistrations()`** removido — `AddProxosGenerated()` é chamado separado de `AddProxos()`
 - [x] **`NotificationHandlerWrapper`** agora recebe `ILogger?` e loga exceções no `FireAndForget`
 - [x] **Mediator** agora injeta `ILogger<Mediator>?` como dependência opcional
 - [x] **Escopo por request** decidido: Mediator **não cria escopo próprio** — documentado no código
-- [x] **`Microsoft.Extensions.Logging.Abstractions`** adicionado ao `Hermes.csproj`
+- [x] **`Microsoft.Extensions.Logging.Abstractions`** adicionado ao `Proxos.csproj`
 
 ### Antes de escrever a primeira linha de código
+
 - [x] Plano detalhado revisado, corrigido e aprovado
 - [ ] Criar a solution e estrutura de projetos
 - [ ] Implementar na ordem: interfaces → Unit → Atributos → Context → Diagnostics → Configuration → Internal → Mediator → Extensions → Tests → Generator → Analyzer → Testing

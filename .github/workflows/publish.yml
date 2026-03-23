@@ -28,13 +28,13 @@ jobs:
         run: dotnet build --no-restore -c Release
 
       - name: Test
-        run: dotnet test tests/Hermes.Tests/Hermes.Tests.csproj --no-build -c Release --logger "console;verbosity=minimal"
+        run: dotnet test tests/Proxos.Tests/Proxos.Tests.csproj --no-build -c Release --logger "console;verbosity=minimal"
 
-      - name: Pack HermesMediator
-        run: dotnet pack src/Hermes/Hermes.csproj --no-build -c Release -o ./nupkgs
+      - name: Pack Proxos
+        run: dotnet pack src/Proxos/Proxos.csproj --no-build -c Release -o ./nupkgs
 
-      - name: Pack HermesMediator.Testing
-        run: dotnet pack src/Hermes.Testing/Hermes.Testing.csproj --no-build -c Release -o ./nupkgs
+      - name: Pack Proxos.Testing
+        run: dotnet pack src/Proxos.Testing/Proxos.Testing.csproj --no-build -c Release -o ./nupkgs
 
       - name: Push to NuGet.org
         run: dotnet nuget push ./nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
