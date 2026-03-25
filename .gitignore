@@ -1,0 +1,41 @@
+# Build
+[Bb]in/
+[Oo]bj/
+*.log
+*.tmp
+*.[Cc]ache
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Test
+[Tt]est[Rr]esult*/
+
+# IDEs
+.idea/
+.vscode/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Security
+*.pfx
+*.p12
+*.key
+*.pem
+
+# Project-specific
+benchmarks/
+BenchmarkDotNet.Artifacts/
+nupkgs/
+coverage/
+anotacoes.md
+PLAN.md

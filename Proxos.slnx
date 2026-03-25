@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Proxos.Generator/Proxos.Generator.csproj" />
+    <Project Path="src/Proxos.Testing/Proxos.Testing.csproj" />
+    <Project Path="src/Proxos/Proxos.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Proxos.Tests/Proxos.Tests.csproj" />
+  </Folder>
+</Solution>
