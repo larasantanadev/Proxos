@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+
+    <PackageId>Proxos</PackageId>
+    <Version>1.0.2</Version>
+    <Description>High-performance mediator for .NET 8, 9 and 10 — zero-reflection hot path, built-in OpenTelemetry, compile-time safety via Source Generator and Roslyn Analyzer.</Description>
+    <PackageTags>mediator;cqrs;pipeline;proxos;dispatcher;opentelemetry</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- PackageReadmeFile herdado do Directory.Build.props -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <!--
+    Referência de build: o generator é aplicado ao projeto consumidor em tempo de compilação.
+    ReferenceOutputAssembly=false → o DLL do generator não polui o assembly de saída do Proxos.
+    Pack=false → não deixamos o MSBuild incluir automaticamente (fazemos manualmente abaixo).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Proxos.Generator\Proxos.Generator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      Pack="false" />
+  </ItemGroup>
+
+  <!--
+    Inclui o Proxos.Generator.dll em analyzers/dotnet/cs/ dentro do .nupkg.
+    Isso é necessário para que consumidores do pacote NuGet também recebam o generator/analyzer.
+    (O OutputItemType=Analyzer acima cobre apenas builds de projeto referenciado diretamente.)
+  -->
+  <Target Name="IncludeGeneratorInPack" BeforeTargets="_GetPackageFiles">
+    <MSBuild Projects="..\Proxos.Generator\Proxos.Generator.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_GeneratorDll" />
+    </MSBuild>
+    <ItemGroup>
+      <None Include="@(_GeneratorDll)"
+            Pack="true"
+            PackagePath="analyzers/dotnet/cs/"
+            Visible="false" />
+    </ItemGroup>
+  </Target>
+</Project>
