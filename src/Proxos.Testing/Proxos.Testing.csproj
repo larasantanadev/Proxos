@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+
+    <PackageId>Proxos.Testing</PackageId>
+    <Version>1.0.2</Version>
+    <Description>Testing utilities for Proxos — FakeMediator with fluent setup and assertion API</Description>
+    <PackageTags>mediator;cqrs;proxos;testing;fake;unit-test</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- PackageReadmeFile herdado do Directory.Build.props -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Proxos\Proxos.csproj" />
+  </ItemGroup>
+</Project>
