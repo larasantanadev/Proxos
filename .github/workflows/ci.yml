@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test (net8.0)
+        run: dotnet test tests/Proxos.Tests/Proxos.Tests.csproj --no-build -c Release -f net8.0 --logger "console;verbosity=minimal" --collect "XPlat Code Coverage" --results-directory ./coverage
+
+      - name: Test (net9.0)
+        run: dotnet test tests/Proxos.Tests/Proxos.Tests.csproj --no-build -c Release -f net9.0 --logger "console;verbosity=minimal"
+
+      - name: Test (net10.0)
+        run: dotnet test tests/Proxos.Tests/Proxos.Tests.csproj --no-build -c Release -f net10.0 --logger "console;verbosity=minimal"
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          directory: ./coverage
+          fail_ci_if_error: false
